@@ -134,7 +134,7 @@
 
             $('#history_button').click(function (e) {
                 e.preventDefault();
-                alert(user_ID_string);
+                //alert(user_ID_string);
                 $.ajax({
                     url: '../api/MyUserInfoHistories/byTeamName3/' + user_ID_string,
                     type: 'GET',
