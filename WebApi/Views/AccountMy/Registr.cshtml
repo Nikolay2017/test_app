@@ -1,0 +1,92 @@
+﻿@{
+    ViewBag.Title = "Регистрация";
+}
+
+<h2>@ViewBag.Title</h2>
+<h4>Создайте новую учетную запись.</h4>
+<hr />
+<div class="form-horizontal">
+    <div class="form-group">
+        <label class="col-md-2 control-label">Введите имя</label>
+        <div class="col-md-10">
+            <input type="text" id="name" class="form-control" /><br />
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="col-md-2 control-label">Введите email</label>
+        <div class="col-md-10">
+            <input type="email" id="email" class="form-control" /><br />
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="col-md-2 control-label">Введите пароль</label>
+        <div class="col-md-10">
+            <input type="password" id="password" class="form-control" /><br />
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="col-md-2 control-label">Подтвердите пароль</label>
+        <div class="col-md-10">
+            <input type="password" id="confirmpassword" class="form-control" /><br />
+        </div>
+    </div>
+    <div class="form-group">
+        <div class="col-md-offset-2 col-md-10">
+            <input type="submit" id="submit" value="Регистрация" class="btn btn-default" /><br />
+        </div>
+    </div>
+</div>
+@section scripts{
+    <script type="text/javascript">
+    $(function () {
+        $('#submit').click(function (e) {
+            e.preventDefault();
+            var data = {
+                Name: $('#name').val(),
+                Email: $('#email').val(),
+                Password: $('#password').val(),
+                ConfirmPassword: $('#confirmpassword').val()
+            };
+
+            $.ajax({
+                type: 'POST',
+                url: '/api/Account/Register',
+                contentType: 'application/json; charset=utf-8',
+                data: JSON.stringify(data)
+            }).success(function (data) {
+                login();
+                //document.location = "/Home/Index";
+            }).fail(function (data) {
+                alert(data.Values);
+                alert("В процесе регистрации возникла ошибка");
+            });
+
+            var tokenKey = "tokenInfo";
+            function login()
+            {
+                e.preventDefault();
+                var loginData = {
+                    grant_type: 'password',
+                    username: $('#email').val(),
+                    password: $('#password').val()
+                };
+                $.ajax({
+                    type: 'POST',
+                    url: '/Token',
+                    data: loginData
+                }).success(function (data) {
+                    $('.userName').text(data.userName);
+                    $('.userInfo').css('display', 'block');
+                    $('#loginForm').css('display', 'none');
+                    // сохраняем в хранилище sessionStorage токен доступа
+                    sessionStorage.setItem(tokenKey, data.access_token);
+                    document.location = "/Home/Index";
+                }).fail(function (data) {
+                    alert('При логине возникла ошибка');
+                });
+            }
+        });
+    })
+    </script>
+}
+

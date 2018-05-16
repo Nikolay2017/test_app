@@ -1,0 +1,179 @@
+﻿@using Microsoft.AspNet.Identity
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>@ViewBag.Title</title>
+    @Styles.Render("~/Content/css")
+    @Scripts.Render("~/bundles/modernizr")
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font: 16px Arial;
+        }
+
+        .autocomplete {
+            /*the container must be positioned relative:*/
+            position: relative;
+            display: inline-block;
+        }
+
+        input {
+            border: 1px solid transparent;
+            background-color: #f1f1f1;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+            input[type=text] {
+                background-color: #f1f1f1;
+                width: 100%;
+            }
+
+            input[type=submit] {
+                background-color: DodgerBlue;
+                color: #fff;
+                cursor: pointer;
+            }
+
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #d4d4d4;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            /*position the autocomplete items to be the same width as the container:*/
+            top: 100%;
+            left: 0;
+            right: 0;
+        }
+
+            .autocomplete-items div {
+                padding: 10px;
+                cursor: pointer;
+                background-color: #fff;
+                border-bottom: 1px solid #d4d4d4;
+            }
+
+                .autocomplete-items div:hover {
+                    /*when hovering an item:*/
+                    background-color: #e9e9e9;
+                }
+
+        .autocomplete-active {
+            /*when navigating through the items using the arrow keys:*/
+            background-color: DodgerBlue !important;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<body>
+    <div class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                @*@Html.ActionLink("Имя приложения", "Index", "Home", new { area = "" }, new { @class = "navbar-brand" })*@
+            </div>
+            <div class="navbar-collapse collapse">
+                <ul class="nav navbar-nav">
+                    <li>@Html.ActionLink("Главная", "Index", "Home", new { area = "" }, null)</li>
+                    @*<li>@Html.ActionLink("API", "Index", "Help", new { area = "" }, null)</li>*@
+                </ul>
+                <ul class="nav navbar-nav navbar-right"></ul>
+            </div>
+        </div>
+    </div>
+    <div class="container body-content">
+        @RenderBody()
+        <hr />
+        <div id="tableBlock" class="table"></div>
+    </div>
+
+    @Scripts.Render("~/bundles/jquery")
+    @Scripts.Render("~/bundles/bootstrap")
+    @RenderSection("scripts", required: false)
+    <script type="text/javascript">
+        $(function () {
+            $(".nav.navbar-nav.navbar-right").empty();
+
+            var strResult = "";
+            var user_ID_string = "";
+            if (sessionStorage.getItem("tokenInfo") != null && sessionStorage.getItem("tokenInfo").toString().length > 0) {
+                GetUserHistory('@User.Identity.GetUserId()');
+            }
+            else
+            {
+                strResult = ' <li>@Html.ActionLink("Регистрация", "Registr", "AccountMy", routeValues: null, htmlAttributes: new { id = "registerLink" })</li>' +
+                            ' <li>@Html.ActionLink("Выполнить вход", "Login", "AccountMy", routeValues: null, htmlAttributes: new { id = "loginLink" })</li>';
+            }
+            function GetUserHistory(user_ID)
+            {
+                user_ID_string = user_ID;
+                strResult = '<li><a href="#">Здравствуйте! @User.Identity.GetUserName()</a></li>' +
+                            '<li><a href="#"><div id="history_button">История транзакций</div></a></li>' +
+                            '<li><a href="#"><div id="logOut">Выйти</div></a></li>';
+            }
+
+            $(".nav.navbar-nav.navbar-right").html(strResult);
+
+            $('#logOut').click(function (e) {
+                e.preventDefault();
+                sessionStorage.removeItem("tokenInfo");
+                document.location = "/Home/Index";
+            });
+
+            $('#history_button').click(function (e) {
+                e.preventDefault();
+                alert(user_ID_string);
+                $.ajax({
+                    url: '../api/MyUserInfoHistories/byTeamName3/' + user_ID_string,
+                    type: 'GET',
+                    dataType: 'json',
+                    beforeSend: function (xhr) {
+                        var token = sessionStorage.getItem("tokenInfo");
+                        xhr.setRequestHeader("Authorization", "Bearer " + token);
+                    },
+                    success: function (data) {
+                        WriteResponse(data);
+                    },
+                    error: function (x, y, z) {
+                        alert(x + '\n' + y + '\n' + z);
+                    }
+                });
+            });
+
+            // вывод полученных данных по транзакциям на экран
+            function WriteResponse(tranzs) {
+                var options = {
+                    weekday: "long", year: "numeric", month: "short",
+                    day: "numeric", hour: "2-digit", minute: "2-digit"
+                };
+                var strResult = "<table><th>Дата и время транзакции</th><th>Имя корреспондента</th><th>Сумма транзакции</th><th>Результирующий баланс</th>";
+                $.each(tranzs, function (index, tranz) {
+                    var d = new Date(tranz.Date.toString());
+                    var month=0;
+                    if ((d.getMonth() + 1) < 10) {
+                        month = "0" + (d.getMonth() + 1);
+                    }
+                    var date = d.getDate() + "." + month + "." + d.getFullYear()+" "+d.getHours()+":"+d.getMinutes();
+                    strResult += "<tr><td>" + date + "</td><td> " + tranz.Name + "</td><td>" +
+                    tranz.Summa_Perev + "</td><td>" + tranz.Balans + "</tr>";
+                });
+                strResult += "</table>";
+                $("#tableBlock").html(strResult);
+            }
+
+        })
+    </script>
+</body>
+</html>

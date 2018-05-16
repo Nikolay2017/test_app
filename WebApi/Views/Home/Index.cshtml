@@ -1,0 +1,246 @@
+﻿@using Microsoft.AspNet.Identity
+
+<div class="userInfo" style="display:none;">
+    <h3>Вы вошли как: <span id="userName" class="userName"></span></h3>
+    <h3>Ваш баланс: <span id="schet" class="schet" style="color:red;"></span></h3>
+
+    <form autocomplete="off">
+        <div class="autocomplete" style="width:300px;">
+            <input id="myInput" type="text" name="Users" placeholder="имя пользователя...">
+        </div>
+        <input id="perevod" type="text" name="summa" placeholder="сумма..." style="margin-right:20px;">
+        <input id="perevod_submit" type="submit">
+    </form>
+
+
+
+</div>
+@section scripts{
+    <script type="text/javascript">
+        $(document).ready(function () {
+            var balans = 0;
+            var current_id = 0;
+            var current_user_info;
+
+            if (sessionStorage.getItem("tokenInfo") != null && sessionStorage.getItem("tokenInfo").toString().length > 0) {
+                GetUser('@User.Identity.GetUserId()');
+            }
+            function GetUser(id) {
+                current_id = id;
+                $.ajax({
+                    url: '../api/MyUserInfoes/byTeamName/' + id,
+                    type: 'GET',
+                    dataType: 'json',
+                    beforeSend: function (xhr) {
+                        var token = sessionStorage.getItem("tokenInfo");
+                        xhr.setRequestHeader("Authorization", "Bearer " + token);
+                    },
+                    success: function (data) {
+                        current_user_info = data;
+                        balans = data.Mony;
+                        $('.userName').text(data.Name);
+                        $('.schet').text(data.Mony);
+                        $('.userInfo').css('display', 'block');
+                        var tokenKey = "tokenInfo";
+                        $.ajax({
+                            type: 'GET',
+                            url: '/api/MyUserInfoes/',
+                            beforeSend: function (xhr) {
+
+                                var token = sessionStorage.getItem(tokenKey);
+                                xhr.setRequestHeader("Authorization", "Bearer " + token);
+                            },
+                            success: function (data) {
+                                // alert(data);
+                                var users = [];
+                                data.forEach(function (item, i, data) {
+                                    users.push(item.Name);
+                                });
+
+                                autocomplete(document.getElementById("myInput"), users);
+                            },
+                            fail: function (data) {
+                                alert(data);
+                            }
+                        });
+                    },
+                    error: function (x, y, z) {
+                        alert(x + '\n' + y + '\n' + z);
+                    }
+                });
+            };
+
+            function autocomplete(inp, arr) {
+                /*the autocomplete function takes two arguments,
+                the text field element and an array of possible autocompleted values:*/
+                var currentFocus;
+                /*execute a function when someone writes in the text field:*/
+                inp.addEventListener("input", function (e) {
+                    var a, b, i, val = this.value;
+                    /*close any already open lists of autocompleted values*/
+                    closeAllLists();
+                    if (!val) { return false; }
+                    currentFocus = -1;
+                    /*create a DIV element that will contain the items (values):*/
+                    a = document.createElement("DIV");
+                    a.setAttribute("id", this.id + "autocomplete-list");
+                    a.setAttribute("class", "autocomplete-items");
+                    /*append the DIV element as a child of the autocomplete container:*/
+                    this.parentNode.appendChild(a);
+                    /*for each item in the array...*/
+                    for (i = 0; i < arr.length; i++) {
+                        /*check if the item starts with the same letters as the text field value:*/
+                        if (arr[i].substr(0, val.length).toUpperCase() == val.toUpperCase()) {
+                            /*create a DIV element for each matching element:*/
+                            b = document.createElement("DIV");
+                            /*make the matching letters bold:*/
+                            b.innerHTML = "<strong>" + arr[i].substr(0, val.length) + "</strong>";
+                            b.innerHTML += arr[i].substr(val.length);
+                            /*insert a input field that will hold the current array item's value:*/
+                            b.innerHTML += "<input type='hidden' value='" + arr[i] + "'>";
+                            /*execute a function when someone clicks on the item value (DIV element):*/
+                            b.addEventListener("click", function (e) {
+                                /*insert the value for the autocomplete text field:*/
+                                inp.value = this.getElementsByTagName("input")[0].value;
+                                /*close the list of autocompleted values,
+                                (or any other open lists of autocompleted values:*/
+                                closeAllLists();
+                            });
+                            a.appendChild(b);
+                        }
+                    }
+                });
+                /*execute a function presses a key on the keyboard:*/
+                inp.addEventListener("keydown", function (e) {
+                    var x = document.getElementById(this.id + "autocomplete-list");
+                    if (x) x = x.getElementsByTagName("div");
+                    if (e.keyCode == 40) {
+                        /*If the arrow DOWN key is pressed,
+                        increase the currentFocus variable:*/
+                        currentFocus++;
+                        /*and and make the current item more visible:*/
+                        addActive(x);
+                    } else if (e.keyCode == 38) { //up
+                        /*If the arrow UP key is pressed,
+                        decrease the currentFocus variable:*/
+                        currentFocus--;
+                        /*and and make the current item more visible:*/
+                        addActive(x);
+                    } else if (e.keyCode == 13) {
+                        /*If the ENTER key is pressed, prevent the form from being submitted,*/
+                        e.preventDefault();
+                        if (currentFocus > -1) {
+                            /*and simulate a click on the "active" item:*/
+                            if (x) x[currentFocus].click();
+                        }
+                    }
+                });
+                function addActive(x) {
+                    /*a function to classify an item as "active":*/
+                    if (!x) return false;
+                    /*start by removing the "active" class on all items:*/
+                    removeActive(x);
+                    if (currentFocus >= x.length) currentFocus = 0;
+                    if (currentFocus < 0) currentFocus = (x.length - 1);
+                    /*add class "autocomplete-active":*/
+                    x[currentFocus].classList.add("autocomplete-active");
+                }
+                function removeActive(x) {
+                    /*a function to remove the "active" class from all autocomplete items:*/
+                    for (var i = 0; i < x.length; i++) {
+                        x[i].classList.remove("autocomplete-active");
+                    }
+                }
+                function closeAllLists(elmnt) {
+                    /*close all autocomplete lists in the document,
+                    except the one passed as an argument:*/
+                    var x = document.getElementsByClassName("autocomplete-items");
+                    for (var i = 0; i < x.length; i++) {
+                        if (elmnt != x[i] && elmnt != inp) {
+                            x[i].parentNode.removeChild(x[i]);
+                        }
+                    }
+                }
+            }
+            $('#perevod_submit').click(function (e) {
+                e.preventDefault();
+
+                $.ajax({
+                    url: '../api/MyUserInfoes/byTeamName2/' + $('#myInput').val(),
+                    type: 'GET',
+                    dataType: 'json',
+                    beforeSend: function (xhr) {
+                        var token = sessionStorage.getItem("tokenInfo");
+                        xhr.setRequestHeader("Authorization", "Bearer " + token);
+                    },
+                    success: function (data) {
+                        if (parseInt($('#perevod').val()) > balans)
+                        {
+                            alert("Сумма перевода превышает ваш баланс!");
+                        }
+                        else
+                        {
+                            if (parseInt($('#perevod').val()) || parseInt($('#perevod').val())>0)
+                            {
+                                var al_info = { "id": data.Id, "Name": data.Name, "UserId": data.UserId, "Mony": data.Mony + parseInt($('#perevod').val()) };
+                                $.ajax({
+                                    type: 'PUT',
+                                    url: '/api/MyUserInfoes/' + data.Id,
+                                    contentType: 'application/json; charset=utf-8',
+                                    beforeSend: function (xhr) {
+                                        var token = sessionStorage.getItem("tokenInfo");
+                                        xhr.setRequestHeader("Authorization", "Bearer " + token);
+                                    },
+                                    data: JSON.stringify(al_info)
+                                }).success(function (data) {
+                                    balans = balans - parseInt($('#perevod').val());
+                                    document.getElementById("schet").innerHTML = balans;
+                                }).fail(function (data) {
+                                    alert("В процесе перевода возникла ошибка");
+                                });
+
+                                var al_info2 = { "id": current_user_info.Id, "Name": current_user_info.Name, "UserId": current_user_info.UserId, "Mony": current_user_info.Mony - parseInt($('#perevod').val()) };
+                                $.ajax({
+                                    type: 'PUT',
+                                    url: '/api/MyUserInfoes/' + current_user_info.Id,
+                                    contentType: 'application/json; charset=utf-8',
+                                    beforeSend: function (xhr) {
+                                        var token = sessionStorage.getItem("tokenInfo");
+                                        xhr.setRequestHeader("Authorization", "Bearer " + token);
+                                    },
+                                    data: JSON.stringify(al_info2)
+                                }).success(function (data) {
+                                }).fail(function (data) {
+                                    alert("В процесе перевода(обнов своих данных) возникла ошибка");
+                                });
+
+                                var hystory = { "UserId": current_user_info.UserId, "Name": data.Name, "Summa_Perev": parseInt($('#perevod').val()), "Balans": current_user_info.Mony - parseInt($('#perevod').val()) };
+                                $.ajax({
+                                    type: 'POST',
+                                    url: '/api/MyUserInfoHistories',
+                                    contentType: 'application/json; charset=utf-8',
+                                    beforeSend: function (xhr) {
+                                        var token = sessionStorage.getItem("tokenInfo");
+                                        xhr.setRequestHeader("Authorization", "Bearer " + token);
+                                    },
+                                    data: JSON.stringify(hystory)
+                                }).success(function (data) {
+                                    alert("История в базе!");
+                                }).fail(function (data) {
+                                    alert("История не сохранилась!");
+                                });
+                            }
+                            else
+                            {
+                                alert("Введите число в поле сумма!");
+                            }
+                        }
+                    },
+                    error: function (x, y, z) {
+                        alert(x + '\n' + y + '\n' + z);
+                    }
+                });
+            })
+        });
+    </script>
+}
